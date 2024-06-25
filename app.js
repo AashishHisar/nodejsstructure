@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
 const userRoute = require('./src/routes/api');
-const User=require("./src/models/user")
 const dotenv = require('dotenv');
 const bodyParser=require('body-parser')
 // Load environment variables from .env file
@@ -28,7 +27,7 @@ app.use('/api', userRoute);
 
 const start = async () => {
     try {
-        await connectDb();
+         await connectDb();
         console.log("first connect mongo db");
         app.listen(PORT, () => {
             console.log(`second ${PORT} port is connected successfully`);
