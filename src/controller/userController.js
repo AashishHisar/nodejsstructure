@@ -1,9 +1,11 @@
 const User = require('../models/user');
-const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 const getUserProfile = async (req, res) => {
     try {
-        const users = await User.findById("66759755fbc147c15fed774f");
-        res.status(200).send(users);
+        const user = await User.findOne({ "_id": req.user._id }).select('-password -createdAt -updatedAt');
+        console.log("data", user);
+        res.status(200).send({ "data": user, "message": "user get profile successfully" });
     } catch (error) {
         res.status(500).send({ error: 'Internal server error' });
     }
@@ -11,32 +13,38 @@ const getUserProfile = async (req, res) => {
 
 const createUser = async (req, res) => {
     const { first_name, email, password } = req.body;
-
-    if (!first_name) {
-        return res.status(400).send({ error: 'First name is required.' });
+    // Validate input
+    if (first_name || !email || !password) {
+        return res.status(400).send({ "message": "Name, email, and password are required" });
     }
-    if (!email) {
-        return res.status(400).send({ error: 'Email is required.' });
-    }
-    if (!password) {
-        return res.status(400).send({ error: 'Password is required.' });
+    const checkExist = await User.findOne({ email });
+    if (checkExist) {
+        res.status(400).send({ "message": "this email is already exist" });
     }
     try {
         const user = new User(req.body);
-        console.log()
         await user.save();
         res.status(201).send(user);
     } catch (error) {
-        if (error.code === 11000) { // Duplicate email error
-            return res.status(400).send({ error: 'Email already exists.' });
-        }
         res.status(400).send(error);
     }
 };
- 
-const loginUser=async(req,res)=>{
-     const {email,password}=req.body;
-     res.status(200).send({"message":"login user successfully"});
+
+const loginUser = async (req, res) => {
+    const { email, password } = req.body;
+    const checkExist = await User.findOne({ email });
+    if (!checkExist) {
+        res.status(400).send({ "message": "Your Account is not exist" });
+    } else {
+        const isMatchPassword = await checkExist.comparePassword(String(password));
+        if (!isMatchPassword) {
+            return res.status(400).send({ "message": 'Invalid credentials' });
+        }
+        const token = jwt.sign({ _id: checkExist._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        res.status(200).header('Authorization', token).send({ "message": "login user successfully", 'token': token });
+    }
+
 }
 
-module.exports = { getUserProfile, createUser ,loginUser}
+module.exports = { getUserProfile, createUser, loginUser }
